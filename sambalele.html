@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Aliado TJ-SP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .main-content {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .nav-item.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .flashcard-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .calendar-day.today {
+            background-color: #e0f2fe;
+            color: #0284c7;
+            font-weight: bold;
+        }
+        /* Estilos para o Modal da Gemini API */
+        #gemini-modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        #gemini-modal-content {
+            transition: transform 0.3s ease;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <!-- Tela de Login -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-200 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl text-center">
+            <div class="flex justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check text-blue-600"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Meu Aliado TJ-SP</h2>
+            <p class="text-slate-500 mb-6">Insira sua senha para acessar.</p>
+            <form id="login-form">
+                <input type="password" id="password-input" class="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Senha">
+                <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">Entrar</button>
+            </form>
+            <p id="login-error" class="text-red-500 text-sm mt-4 h-4"></p>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal do App (inicialmente oculto) -->
+    <div id="app-container" class="flex h-screen hidden">
+        <!-- Sidebar de Navegação -->
+        <nav class="w-20 lg:w-64 bg-white shadow-lg flex flex-col">
+            <div class="flex items-center justify-center lg:justify-start p-4 border-b h-16">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check text-blue-600"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                <h1 class="text-xl font-bold text-slate-800 ml-3 hidden lg:block">Aliado TJ-SP</h1>
+            </div>
+            <ul class="flex-grow p-2">
+                <li class="nav-item rounded-lg mb-2 cursor-pointer active" data-page="dashboard">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="layout-dashboard"></i><span class="ml-4 hidden lg:inline">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="schedule">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="calendar-days"></i><span class="ml-4 hidden lg:inline">Cronograma</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="subjects">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="notebook-pen"></i><span class="ml-4 hidden lg:inline">Matérias</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="reviews">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="repeat"></i><span class="ml-4 hidden lg:inline">Revisões</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="flashcards">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="copy"></i><span class="ml-4 hidden lg:inline">Flashcards</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="performance">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="bar-chart-3"></i><span class="ml-4 hidden lg:inline">Desempenho</span>
+                    </a>
+                </li>
+                <li class="nav-item rounded-lg mb-2 cursor-pointer" data-page="writing">
+                    <a class="flex items-center p-3">
+                        <i data-lucide="file-pen-line"></i><span class="ml-4 hidden lg:inline">Redação e Simulados</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="p-4 border-t">
+                 <button id="resetDataBtn" class="w-full flex items-center justify-center lg:justify-start p-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                    <i data-lucide="trash-2"></i>
+                    <span class="ml-4 hidden lg:inline">Resetar Dados</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 p-6 lg:p-8 overflow-y-auto">
+            
+            <!-- Dashboard -->
+            <div id="dashboard" class="main-content">
+                <h2 class="text-3xl font-bold mb-6">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-lg mb-2">Foco do Dia</h3>
+                        <p id="focus-of-the-day" class="text-2xl font-bold text-blue-600">Consulte o Plano</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-lg mb-2">Revisões Pendentes</h3>
+                        <p id="pending-reviews" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-lg mb-2">Progresso Geral</h3>
+                        <p class="text-slate-600 mt-2">Acompanhe seu avanço na aba 'Matérias'.</p>
+                    </div>
+                </div>
+                <div class="mt-8 bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-semibold text-xl mb-4">Revisões de Hoje</h3>
+                    <ul id="today-reviews-list" class="space-y-3">
+                        <!-- Revisões serão inseridas aqui -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Cronograma -->
+            <div id="schedule" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Plano Estratégico de Estudos – TJ-SP 2025</h2>
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-xl mb-4 text-slate-800">1. Organização do Tempo</h3>
+                        <ul class="list-disc list-inside space-y-2 text-slate-700">
+                            <li><b>Prazo até a prova:</b> cerca de 4 meses (considerando prova em 07/12/2025).</li>
+                            <li><b>Horário sugerido:</b> 2–3 horas por dia, de segunda a sábado (pode ser ajustado conforme disponibilidade).</li>
+                            <li><b>Divisão semanal:</b>
+                                <ul class="list-disc list-inside ml-6">
+                                    <li>Segunda a sexta: teoria + exercícios.</li>
+                                    <li>Sábado: simulados e revisão.</li>
+                                    <li>Domingo: descanso ou leitura leve de atualidades e legislação interna.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="font-semibold text-xl mb-4 text-slate-800">2. Distribuição por Disciplinas</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-slate-600">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3">Disciplina</th>
+                                        <th scope="col" class="px-4 py-3">Questões</th>
+                                        <th scope="col" class="px-4 py-3">Bloco</th>
+                                        <th scope="col" class="px-4 py-3">Estratégia</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <tr class="bg-white">
+                                        <td class="px-4 py-3 font-medium">Língua Portuguesa</td>
+                                        <td class="px-4 py-3">16 (23%)</td>
+                                        <td class="px-4 py-3">Bloco I</td>
+                                        <td class="px-4 py-3">Interpretar textos diariamente, revisar gramática, fazer exercícios de concordância, regência, pontuação e coesão.</td>
+                                    </tr>
+                                     <tr class="bg-slate-50">
+                                        <td class="px-4 py-3 font-medium">Direito (Todas as áreas)</td>
+                                        <td class="px-4 py-3">30 (43%)</td>
+                                        <td class="px-4 py-3">Bloco II</td>
+                                        <td class="px-4 py-3">Foco na leitura da lei seca dos artigos do edital. Resolução massiva de questões da VUNESP.</td>
+                                    </tr>
+                                    <tr class="bg-white">
+                                        <td class="px-4 py-3 font-medium">Informática</td>
+                                        <td class="px-4 py-3">9</td>
+                                        <td rowspan="4" class="px-4 py-3 align-middle">Bloco III (34%)</td>
+                                        <td class="px-4 py-3">Prática no Word e Excel, navegação, e-mails, Teams, OneDrive; revisar atalhos e funções principais.</td>
+                                    </tr>
+                                    <tr class="bg-white">
+                                        <td class="px-4 py-3 font-medium">Raciocínio Lógico</td>
+                                        <td class="px-4 py-3">7</td>
+                                        <td class="px-4 py-3">Resolver exercícios com sequências, estruturas e diagramas lógicos.</td>
+                                    </tr>
+                                    <tr class="bg-white">
+                                        <td class="px-4 py-3 font-medium">Matemática</td>
+                                        <td class="px-4 py-3">4</td>
+                                        <td class="px-4 py-3">Resolver exercícios de porcentagem, regra de 3, juros simples, equações e problemas práticos.</td>
+                                    </tr>
+                                    <tr class="bg-white">
+                                        <td class="px-4 py-3 font-medium">Atualidades / Direitos da PcD</td>
+                                        <td class="px-4 py-3">4</td>
+                                        <td class="px-4 py-3">Notícias do 1º semestre de 2025 e leitura da Lei 13.146/2015.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PÁGINA DE MATÉRIAS -->
+            <div id="subjects" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Gerenciar Matérias e Tópicos</h2>
+                <div class="bg-white p-6 rounded-xl shadow-md max-w-3xl mx-auto mb-6">
+                    <h3 class="font-semibold text-xl mb-4">Adicionar Nova Matéria</h3>
+                    <form id="add-subject-form" class="flex items-center gap-2">
+                        <input type="text" id="subject-name" class="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Nome da matéria principal" required>
+                        <button type="submit" class="p-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold">Adicionar</button>
+                    </form>
+                </div>
+                <div id="subject-list" class="space-y-4 max-w-3xl mx-auto">
+                    <!-- Lista de matérias e tópicos será inserida aqui -->
+                </div>
+            </div>
+
+            <!-- Revisões -->
+            <div id="reviews" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Gerador de Revisões</h2>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-semibold text-xl mb-4">Adicionar Novo Tópico para Revisão</h3>
+                    <form id="add-review-form" class="space-y-4">
+                        <div>
+                            <label for="review-subject" class="block text-sm font-medium text-slate-600">Matéria</label>
+                            <select id="review-subject" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <!-- Opções de matéria serão inseridas aqui -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="review-topic" class="block text-sm font-medium text-slate-600">Tópico Estudado</label>
+                            <input type="text" id="review-topic" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Ex: Art. 5º da Constituição Federal" required>
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Agendar Revisões</button>
+                    </form>
+                </div>
+                 <div class="mt-8 bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-semibold text-xl mb-4">Todos os Agendamentos</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tópico</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Próxima Revisão</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-reviews-table" class="bg-white divide-y divide-slate-200">
+                                <!-- Linhas da tabela serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flashcards -->
+            <div id="flashcards" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Flashcards</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md">
+                        <!-- Geração Automática com Gemini -->
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-xl mb-4 flex items-center gap-2">✨ Geração Automática</h3>
+                            <form id="generate-flashcards-form" class="space-y-4">
+                                <div>
+                                    <label for="gen-flashcard-deck-select" class="block text-sm font-medium text-slate-600">Adicionar ao Deck</label>
+                                    <select id="gen-flashcard-deck-select" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                                </div>
+                                <div>
+                                    <label for="gen-flashcard-topic" class="block text-sm font-medium text-slate-600">Tópico</label>
+                                    <input type="text" id="gen-flashcard-topic" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Ex: Atos Administrativos" required>
+                                </div>
+                                <button type="submit" class="w-full px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity">Gerar 5 Flashcards</button>
+                            </form>
+                        </div>
+                        <hr class="my-6">
+                        <h3 class="font-semibold text-xl mb-4">Gerenciar Decks</h3>
+                        <form id="add-deck-form" class="space-y-4 mb-4">
+                            <div>
+                                <label for="deck-subject-select" class="block text-sm font-medium text-slate-600">Matéria</label>
+                                <select id="deck-subject-select" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="deck-name" class="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Nome do novo deck" required>
+                                <button type="submit" class="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"><i data-lucide="plus"></i></button>
+                            </div>
+                        </form>
+                        <div id="deck-list" class="space-y-2"></div>
+                        <hr class="my-6">
+                        <h3 class="font-semibold text-xl mb-4">Adicionar Flashcard Manualmente</h3>
+                        <form id="add-flashcard-form" class="space-y-4">
+                             <div>
+                                <label for="flashcard-deck-select" class="block text-sm font-medium text-slate-600">Deck</label>
+                                <select id="flashcard-deck-select" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></select>
+                            </div>
+                            <div>
+                                <label for="flashcard-front" class="block text-sm font-medium text-slate-600">Frente</label>
+                                <textarea id="flashcard-front" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required></textarea>
+                            </div>
+                            <div>
+                                <label for="flashcard-back" class="block text-sm font-medium text-slate-600">Verso</label>
+                                <textarea id="flashcard-back" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required></textarea>
+                            </div>
+                            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Adicionar Card</button>
+                        </form>
+                    </div>
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                        <h3 id="current-deck-title" class="font-semibold text-xl mb-4 text-center">Selecione um deck para começar</h3>
+                        <div id="flashcard-viewer" class="flex flex-col items-center justify-center h-full">
+                            <div id="flashcard-container" class="w-full max-w-lg h-64 perspective-1000">
+                                <!-- Flashcard será inserido aqui -->
+                            </div>
+                            <div id="flashcard-controls" class="mt-6 flex items-center gap-4">
+                                <!-- Controles serão inseridos aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desempenho -->
+            <div id="performance" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Desempenho nos Simulados</h2>
+                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Coluna da Esquerda: Registro e Calendário -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="font-semibold text-xl mb-4">Registrar Avaliação</h3>
+                            <form id="add-performance-form" class="space-y-4">
+                                <div>
+                                    <label for="performance-subject" class="block text-sm font-medium text-slate-600">Descrição</label>
+                                    <input type="text" id="performance-subject" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Ex: Simulado Geral 01" required>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="performance-score" class="block text-sm font-medium text-slate-600">Pontuação (%)</label>
+                                        <input type="number" id="performance-score" min="0" max="100" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required>
+                                    </div>
+                                    <div>
+                                        <label for="performance-date" class="block text-sm font-medium text-slate-600">Data</label>
+                                        <input type="date" id="performance-date" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="performance-type" class="block text-sm font-medium text-slate-600">Tipo</label>
+                                    <select id="performance-type" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                        <option value="simulado">Simulado (Matérias)</option>
+                                        <option value="redacao">Redação</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Registrar</button>
+                            </form>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 id="calendar-month-year" class="font-semibold text-xl"></h3>
+                                <div class="flex items-center gap-2">
+                                    <button id="prev-month-btn" class="p-2 rounded-md hover:bg-slate-100"><i data-lucide="chevron-left"></i></button>
+                                    <button id="next-month-btn" class="p-2 rounded-md hover:bg-slate-100"><i data-lucide="chevron-right"></i></button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-500 mb-2">
+                                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                            </div>
+                            <div id="calendar-grid" class="grid grid-cols-7 gap-1">
+                                <!-- Dias do calendário aqui -->
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Coluna da Direita: Gráficos e Últimos Resultados -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="font-semibold text-xl mb-4">Últimos Resultados</h3>
+                            <div class="overflow-y-auto max-h-40">
+                                <table class="min-w-full">
+                                    <thead class="bg-slate-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Simulado</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nota</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="last-performance-table" class="divide-y divide-slate-200">
+                                        <!-- Últimos resultados aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="font-semibold text-xl mb-4">Evolução Geral</h3>
+                            <div class="h-48">
+                                <canvas id="performance-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="font-semibold text-xl mb-4">Média de Acertos</h3>
+                            <div class="h-48 flex items-center justify-center">
+                                <canvas id="performance-pie-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PÁGINA: Redação e Simulados -->
+            <div id="writing" class="main-content hidden">
+                <h2 class="text-3xl font-bold mb-6">Redação e Simulados</h2>
+                <div class="bg-white p-6 rounded-xl shadow-md max-w-3xl mx-auto mb-6">
+                    <h3 class="font-semibold text-xl mb-1">Prova Discursiva <span class="text-sm font-medium text-blue-600 bg-blue-100 py-1 px-2 rounded-full">REDAÇÃO</span></h3>
+                    <p class="text-slate-600 mb-4">Texto dissertativo-argumentativo (em prosa).</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-slate-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-slate-800">Caráter</h4>
+                            <p class="text-slate-600">Apenas Eliminatório.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-slate-800">Pontuação</h4>
+                            <p class="text-slate-600">Nota Mínima: 20 (de 0 a 40).</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 border-t pt-6">
+                         <button id="suggest-topic-btn" class="w-full px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            Sugerir Tema de Redação com IA
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md max-w-3xl mx-auto">
+                    <h3 class="font-semibold text-xl mb-4 flex items-center gap-2">✨ Análise de Redação com IA</h3>
+                    <form id="analyze-writing-form">
+                        <div>
+                            <label for="writing-text" class="block text-sm font-medium text-slate-600 mb-2">Cole sua redação abaixo para uma análise inicial:</label>
+                            <textarea id="writing-text" rows="10" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Escreva ou cole seu texto aqui..." required></textarea>
+                        </div>
+                        <button type="submit" class="w-full mt-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity">Analisar Redação</button>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal para Gemini API -->
+    <div id="gemini-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 hidden">
+        <div id="gemini-modal-content" class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col transform scale-95">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 id="gemini-modal-title" class="text-lg font-semibold flex items-center gap-2"><i data-lucide="sparkles" class="text-purple-500"></i> Assistente IA</h3>
+                <button id="gemini-modal-close" class="p-1 rounded-full hover:bg-slate-100"><i data-lucide="x"></i></button>
+            </div>
+            <div id="gemini-modal-body" class="p-6 overflow-y-auto">
+                <!-- Conteúdo do Modal (Loading ou Resultado) -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- SENHA E API KEY ---
+            // IMPORTANTE: Altere a senha aqui para uma de sua preferência.
+            const CORRECT_PASSWORD = "52494014";
+            // IMPORTANTE: Insira sua Chave de API do Google AI Studio aqui.
+            const GEMINI_API_KEY = ""; 
+
+            lucide.createIcons();
+
+            // --- LÓGICA DE LOGIN ---
+            const loginOverlay = document.getElementById('login-overlay');
+            const appContainer = document.getElementById('app-container');
+            const loginForm = document.getElementById('login-form');
+            const passwordInput = document.getElementById('password-input');
+            const loginError = document.getElementById('login-error');
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (passwordInput.value === CORRECT_PASSWORD) {
+                    loginOverlay.style.display = 'none';
+                    appContainer.classList.remove('hidden');
+                    initializeApp();
+                } else {
+                    loginError.textContent = 'Senha incorreta. Tente novamente.';
+                    passwordInput.value = '';
+                }
+            });
+
+            // --- CONFIGURAÇÃO INICIAL ---
+            const initialData = {
+                subjects: [
+                    { id: 1, name: "Língua Portuguesa", topics: ["Análise, compreensão e interpretação de diversos tipos de textos", "Informações literais e inferências possíveis", "Ponto de vista do autor", "Estruturação do texto: relações entre ideias; recursos de coesão", "Significação contextual de palavras e expressões", "Sinônimos e antônimos", "Sentido próprio e figurado das palavras", "Classes de palavras: emprego e sentido", "Concordância verbal e nominal", "Regência verbal e nominal", "Colocação pronominal", "Crase", "Pontuação"].map(t => ({name: t, progress: 0})) },
+                    { id: 2, name: "Direito Penal", topics: ["Artigos 293 a 305", "Artigos 307 e 308", "Artigo 311-A", "Artigos 312 a 317", "Artigos 319 a 333", "Artigos 336 e 337", "Artigos 339 a 347", "Artigos 357 e 359"].map(t => ({name: t, progress: 0})) },
+                    { id: 3, name: "Direito Processual Penal", topics: ["Arts. 251 ao 258", "Arts. 261 ao 267", "Art. 274", "Arts. 351 ao 372", "Arts. 394 ao 497", "Arts. 531 ao 538", "Arts. 541 ao 548", "Arts. 574 ao 667", "Lei nº 9.099/95 (arts. 60 a 83; 88 e 89)"].map(t => ({name: t, progress: 0})) },
+                    { id: 4, name: "Direito Processual Civil", topics: ["Arts. 144 a 155", "Arts. 188 a 275", "Arts. 294 a 311", "Arts. 318 a 538", "Arts. 994 a 1026", "Lei nº 9.099/95 (arts. 3º ao 19)", "Lei nº 12.153/09 (integral)"].map(t => ({name: t, progress: 0})) },
+                    { id: 5, name: "Direito Constitucional", topics: ["Art. 5º", "Arts. 6º ao 11", "Arts. 12 e 13", "Arts. 37 ao 41", "Art. 92"].map(t => ({name: t, progress: 0})) },
+                    { id: 6, name: "Direito Administrativo", topics: ["Lei 10.261/68 (Arts. 1º a 86, 171 a 175, 239 a 323)", "Lei 8.429/92 (integral)"].map(t => ({name: t, progress: 0})) },
+                    { id: 7, name: "Legislação Interna", topics: ["Resolução TJSP nº 850/2021", "Resolução TJSP n° 963/2025", "Lei Complementar nº 1.111/2010", "Regimento Interno do TJSP", "Normas da Corregedoria (Tomo I)"].map(t => ({name: t, progress: 0})) },
+                    { id: 8, name: "Atualidades / Direitos da PcD", topics: ["Fatos políticos, econômicos, sociais e culturais (1º sem. 2025)", "Lei nº 13.146/2015 (arts. 1º ao 13, 34 ao 38)"].map(t => ({name: t, progress: 0})) },
+                    { id: 9, name: "Matemática", topics: ["Operações com números reais", "MMC e MDC", "Razão e proporção", "Porcentagem", "Regra de três", "Média", "Juro simples", "Equações 1º e 2º graus", "Sistema de equações 1º grau", "Tabelas e gráficos", "Sistemas de medidas", "Geometria", "Resolução de problemas"].map(t => ({name: t, progress: 0})) },
+                    { id: 10, name: "Informática", topics: ["MS-Windows 10", "MS-Word", "MS-Excel", "Correio Eletrônico", "Internet", "MS Teams"].map(t => ({name: t, progress: 0})) },
+                    { id: 11, name: "Raciocínio Lógico", topics: ["Estruturas lógicas", "Lógica de argumentação", "Diagramas lógicos", "Sequências"].map(t => ({name: t, progress: 0})) }
+                ],
+                lastSubjectId: 11,
+                reviews: [],
+                flashcards: {
+                    decks: [{ id: 1, name: "Exemplo: Normas", subject: "Legislação Interna" }],
+                    cards: []
+                },
+                performance: [
+                    { label: 'Simulado Exemplo', score: 65, date: new Date().toISOString(), type: 'simulado' }
+                ],
+                lastDeckId: 1,
+                lastCardId: 0
+            };
+
+            let appData = {};
+            let performanceChart;
+            let performancePieChart;
+            let calendarDate = new Date();
+
+            // --- GERENCIAMENTO DE DADOS ---
+            function loadData() {
+                const savedData = localStorage.getItem('aliadoTjspData');
+                if (savedData) {
+                    appData = JSON.parse(savedData);
+                    if (appData.subjects && appData.subjects.length > 0 && appData.subjects[0].topics.length > 0 && typeof appData.subjects[0].topics[0] === 'string') {
+                        appData.subjects.forEach(subject => {
+                            subject.topics = subject.topics.map(topicName => ({
+                                name: topicName,
+                                progress: 0
+                            }));
+                        });
+                        saveData();
+                    }
+                } else {
+                    appData = JSON.parse(JSON.stringify(initialData));
+                    saveData();
+                }
+            }
+
+            function saveData() {
+                localStorage.setItem('aliadoTjspData', JSON.stringify(appData));
+            }
+            
+            function resetData() {
+                if (confirm('Tem certeza que deseja apagar TODOS os dados? Esta ação não pode ser desfeita.')) {
+                    localStorage.removeItem('aliadoTjspData');
+                    loadData();
+                    renderAll();
+                }
+            }
+            
+            // --- INICIALIZAÇÃO DO APP APÓS LOGIN ---
+            function initializeApp() {
+                document.getElementById('resetDataBtn').addEventListener('click', resetData);
+                const navItems = document.querySelectorAll('.nav-item');
+                const pages = document.querySelectorAll('.main-content');
+    
+                function switchPage(pageId) {
+                    pages.forEach(page => page.classList.add('hidden'));
+                    document.getElementById(pageId).classList.remove('hidden');
+                    navItems.forEach(item => {
+                        item.classList.remove('active');
+                        if (item.dataset.page === pageId) item.classList.add('active');
+                    });
+                }
+    
+                navItems.forEach(item => {
+                    item.addEventListener('click', () => switchPage(item.dataset.page));
+                });
+    
+                // --- LÓGICA DO DASHBOARD ---
+                function renderDashboard() {
+                    document.getElementById('focus-of-the-day').textContent = "Consulte o Plano";
+    
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const todayReviewsList = document.getElementById('today-reviews-list');
+                    todayReviewsList.innerHTML = '';
+                    let pendingReviewsCount = 0;
+    
+                    appData.reviews.forEach(review => {
+                        if (new Date(review.nextReviewDate) <= today && !review.done) {
+                            pendingReviewsCount++;
+                            const li = document.createElement('li');
+                            li.className = 'flex items-center justify-between bg-slate-50 p-3 rounded-lg';
+                            li.innerHTML = `
+                                <div>
+                                    <span class="font-medium">${review.topic}</span>
+                                    <span class="text-sm text-slate-500 ml-2">(${review.subject})</span>
+                                </div>
+                                <button data-review-id="${review.id}" class="complete-review-btn px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600">Concluir</button>
+                            `;
+                            todayReviewsList.appendChild(li);
+                        }
+                    });
+                    
+                    if (pendingReviewsCount === 0) {
+                        todayReviewsList.innerHTML = '<p class="text-slate-500">Nenhuma revisão para hoje. Bom trabalho!</p>';
+                    }
+    
+                    document.getElementById('pending-reviews').textContent = pendingReviewsCount;
+                    
+                    const weeklyProgressContainer = document.querySelector('#dashboard .bg-white:nth-child(3)');
+                    if (weeklyProgressContainer) {
+                       weeklyProgressContainer.querySelector('h3').textContent = 'Progresso Geral';
+                       const progressContent = weeklyProgressContainer.querySelector('p');
+                       if(progressContent) {
+                           progressContent.textContent = "Acompanhe seu avanço na aba 'Matérias'.";
+                       }
+                    }
+                }
+                
+                // --- LÓGICA DAS MATÉRIAS ---
+                function renderSubjectsPage() {
+                    const subjectListDiv = document.getElementById('subject-list');
+                    subjectListDiv.innerHTML = '';
+                    appData.subjects.forEach(subject => {
+                        const card = document.createElement('div');
+                        card.className = 'bg-white p-4 rounded-xl shadow-md';
+                        card.innerHTML = `
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-bold text-lg text-slate-800">${subject.name}</h4>
+                                <button data-subject-id="${subject.id}" data-subject-name="${subject.name}" class="delete-subject-btn text-red-500 hover:text-red-700"><i data-lucide="trash-2" class="pointer-events-none"></i></button>
+                            </div>
+                            <div class="pl-2 border-l-2 border-slate-200">
+                                <ul class="topic-list space-y-3 mb-4">
+                                    ${subject.topics.map(topic => `
+                                        <li class="bg-slate-50 p-2 rounded-md">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-sm flex-1">${topic.name}</span>
+                                                <div class="flex items-center gap-2">
+                                                    <button data-subject-name="${subject.name}" data-topic-name="${topic.name}" class="explain-topic-btn text-purple-500 hover:text-purple-700" title="Explicar Tópico com IA"><i data-lucide="sparkles" class="w-4 h-4 pointer-events-none"></i></button>
+                                                    <button data-subject-name="${subject.name}" data-topic-name="${topic.name}" class="generate-question-btn text-blue-500 hover:text-blue-700" title="Gerar Questão com IA"><i data-lucide="dice-5" class="w-4 h-4 pointer-events-none"></i></button>
+                                                    <button data-subject-id="${subject.id}" data-topic-name="${topic.name}" class="delete-topic-btn text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4 pointer-events-none"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="range" min="0" max="100" value="${topic.progress}" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer topic-progress-slider" data-subject-id="${subject.id}" data-topic-name="${topic.name}">
+                                                <span class="text-xs font-semibold text-slate-600 w-10 text-right progress-percentage">${topic.progress}%</span>
+                                            </div>
+                                        </li>
+                                    `).join('') || '<p class="text-sm text-slate-400">Nenhum tópico adicionado.</p>'}
+                                </ul>
+                                <form class="add-topic-form flex items-center gap-2" data-subject-id="${subject.id}">
+                                    <input type="text" class="topic-name-input block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-sm" placeholder="Novo tópico" required>
+                                    <button type="submit" class="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                                </form>
+                            </div>
+                        `;
+                        subjectListDiv.appendChild(card);
+                    });
+                    lucide.createIcons();
+                }
+    
+                function addSubject(e) {
+                    e.preventDefault();
+                    const input = document.getElementById('subject-name');
+                    const subjectName = input.value.trim();
+                    if (subjectName && !appData.subjects.some(s => s.name.toLowerCase() === subjectName.toLowerCase())) {
+                        appData.lastSubjectId = (appData.lastSubjectId || 0) + 1;
+                        const newSubject = { id: appData.lastSubjectId, name: subjectName, topics: [] };
+                        appData.subjects.push(newSubject);
+                        saveData();
+                        renderSubjectsPage();
+                        renderReviews();
+                        input.value = '';
+                    } else if (appData.subjects.some(s => s.name.toLowerCase() === subjectName.toLowerCase())) {
+                        alert('Esta matéria já existe.');
+                    }
+                }
+    
+                function deleteSubject(subjectId, subjectName) {
+                    const isInUse = appData.reviews.some(review => review.subject === subjectName);
+                    if (isInUse && !confirm('Esta matéria está sendo usada em agendamentos de revisão. Excluí-la não removerá os agendamentos, mas o nome da matéria será mantido neles. Deseja continuar?')) {
+                        return;
+                    }
+                    if (!isInUse && !confirm('Tem certeza que deseja excluir esta matéria e todos os seus tópicos?')) {
+                        return;
+                    }
+                    
+                    appData.subjects = appData.subjects.filter(s => s.id != subjectId);
+                    saveData();
+                    renderSubjectsPage();
+                    renderReviews();
+                }
+    
+                function addTopic(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const subjectId = form.dataset.subjectId;
+                    const input = form.querySelector('.topic-name-input');
+                    const topicName = input.value.trim();
+                    const subject = appData.subjects.find(s => s.id == subjectId);
+    
+                    if (topicName && subject && !subject.topics.some(t => t.name === topicName)) {
+                        subject.topics.push({ name: topicName, progress: 0 });
+                        saveData();
+                        renderSubjectsPage();
+                        input.value = '';
+                    }
+                }
+    
+                function deleteTopic(subjectId, topicName) {
+                    const subject = appData.subjects.find(s => s.id == subjectId);
+                    if (subject) {
+                        subject.topics = subject.topics.filter(t => t.name !== topicName);
+                        saveData();
+                        renderSubjectsPage();
+                    }
+                }
+    
+                function updateTopicProgress(subjectId, topicName, progress) {
+                    const subject = appData.subjects.find(s => s.id == subjectId);
+                    if (subject) {
+                        const topic = subject.topics.find(t => t.name === topicName);
+                        if (topic) {
+                            topic.progress = progress;
+                            saveData();
+                        }
+                    }
+                }
+    
+    
+                // --- LÓGICA DAS REVISÕES ---
+                function renderReviews() {
+                    const subjectSelect = document.getElementById('review-subject');
+                    if (appData.subjects.length > 0) {
+                        subjectSelect.innerHTML = appData.subjects.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                    } else {
+                        subjectSelect.innerHTML = '<option>Adicione uma matéria primeiro</option>';
+                    }
+                    renderAllReviewsTable();
+                }
+    
+                function renderAllReviewsTable() {
+                    const tableBody = document.getElementById('all-reviews-table');
+                    tableBody.innerHTML = '';
+                    appData.reviews
+                        .sort((a, b) => new Date(a.nextReviewDate) - new Date(b.nextReviewDate))
+                        .forEach(review => {
+                            const row = document.createElement('tr');
+                            const reviewDate = new Date(review.nextReviewDate);
+                            const today = new Date();
+                            today.setHours(0,0,0,0);
+                            
+                            let statusClass = 'bg-blue-100 text-blue-800';
+                            let statusText = `Agendado para ${reviewDate.toLocaleDateString('pt-BR')}`;
+                            if (review.done) {
+                                statusClass = 'bg-green-100 text-green-800';
+                                statusText = 'Concluído';
+                            } else if (reviewDate <= today) {
+                                statusClass = 'bg-yellow-100 text-yellow-800';
+                                statusText = 'Pendente';
+                            }
+    
+                            row.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-slate-900">${review.topic}</div>
+                                    <div class="text-sm text-slate-500">${review.subject}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${new Date(review.nextReviewDate).toLocaleDateString('pt-BR')}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">${statusText}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button data-review-id="${review.id}" class="delete-review-btn text-red-600 hover:text-red-900">Excluir</button>
+                                </td>
+                            `;
+                            tableBody.appendChild(row);
+                    });
+                }
+    
+                function addReview(e) {
+                    e.preventDefault();
+                    if(appData.subjects.length === 0) {
+                        alert("Por favor, adicione uma matéria na aba 'Matérias' antes de agendar uma revisão.");
+                        return;
+                    }
+                    const subject = document.getElementById('review-subject').value;
+                    const topic = document.getElementById('review-topic').value;
+                    
+                    const now = new Date();
+                    const reviewDates = [1, 7, 30].map(days => {
+                        const date = new Date(now);
+                        date.setDate(now.getDate() + days);
+                        return date.toISOString();
+                    });
+    
+                    const newReview = {
+                        id: Date.now(), subject, topic,
+                        creationDate: now.toISOString(),
+                        nextReviewDate: reviewDates[0],
+                        stage: 1, done: false, reviewDates
+                    };
+    
+                    appData.reviews.push(newReview);
+                    saveData();
+                    renderAllReviewsTable();
+                    renderDashboard();
+                    document.getElementById('add-review-form').reset();
+                }
+    
+                function completeReview(reviewId) {
+                    const review = appData.reviews.find(r => r.id == reviewId);
+                    if (review) {
+                        if (review.stage < 3) {
+                            review.stage++;
+                            review.nextReviewDate = review.reviewDates[review.stage - 1];
+                        } else {
+                            review.done = true;
+                        }
+                        saveData();
+                        renderDashboard();
+                        renderAllReviewsTable();
+                    }
+                }
+                
+                function deleteReview(reviewId) {
+                     if (confirm('Deseja realmente excluir este agendamento de revisão?')) {
+                        appData.reviews = appData.reviews.filter(r => r.id != reviewId);
+                        saveData();
+                        renderDashboard();
+                        renderAllReviewsTable();
+                    }
+                }
+    
+    
+                // --- LÓGICA DOS FLASHCARDS ---
+                let currentDeckId = null;
+                let currentCardIndex = 0;
+    
+                function renderFlashcards() {
+                    renderDeckList();
+                    updateDeckSubjectSelect();
+                    updateFlashcardDeckSelect();
+                }
+    
+                function updateDeckSubjectSelect() {
+                    const select = document.getElementById('deck-subject-select');
+                    if (appData.subjects.length > 0) {
+                        select.innerHTML = appData.subjects.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+                    } else {
+                        select.innerHTML = '<option>Crie uma matéria primeiro</option>';
+                    }
+                }
+    
+                function renderDeckList() {
+                    const deckList = document.getElementById('deck-list');
+                    deckList.innerHTML = '';
+    
+                    const decksBySubject = appData.flashcards.decks.reduce((acc, deck) => {
+                        (acc[deck.subject] = acc[deck.subject] || []).push(deck);
+                        return acc;
+                    }, {});
+    
+                    const subjectsWithDecks = Object.keys(decksBySubject).sort();
+    
+                    if (subjectsWithDecks.length === 0) {
+                        deckList.innerHTML = '<p class="text-sm text-slate-500">Nenhum deck criado.</p>';
+                        return;
+                    }
+    
+                    subjectsWithDecks.forEach(subject => {
+                        const subjectDiv = document.createElement('div');
+                        subjectDiv.className = 'mb-4';
+                        subjectDiv.innerHTML = `<h4 class="font-semibold text-slate-600 text-sm mb-2 border-b pb-1">${subject}</h4>`;
+                        
+                        decksBySubject[subject].forEach(deck => {
+                            const div = document.createElement('div');
+                            div.className = `flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-slate-100 ${deck.id === currentDeckId ? 'bg-blue-100' : ''}`;
+                            div.innerHTML = `
+                                <span class="select-deck text-sm" data-deck-id="${deck.id}">${deck.name}</span>
+                                <button class="delete-deck-btn text-red-500 hover:text-red-700" data-deck-id="${deck.id}"><i data-lucide="x" class="w-4 h-4 pointer-events-none"></i></button>
+                            `;
+                            subjectDiv.appendChild(div);
+                        });
+                        deckList.appendChild(subjectDiv);
+                    });
+    
+                    lucide.createIcons();
+                }
+                
+                function updateFlashcardDeckSelect() {
+                    const genSelect = document.getElementById('gen-flashcard-deck-select');
+                    const addSelect = document.getElementById('flashcard-deck-select');
+                    
+                    if (appData.flashcards.decks.length > 0) {
+                        const options = appData.flashcards.decks.map(d => `<option value="${d.id}">${d.name} (${d.subject})</option>`).join('');
+                        genSelect.innerHTML = options;
+                        addSelect.innerHTML = options;
+                    } else {
+                        genSelect.innerHTML = '<option>Crie um deck primeiro</option>';
+                        addSelect.innerHTML = '<option>Crie um deck primeiro</option>';
+                    }
+                }
+    
+                function addDeck(e) {
+                    e.preventDefault();
+                    if (appData.subjects.length === 0) {
+                        alert("Por favor, adicione uma matéria na aba 'Matérias' antes de criar um deck.");
+                        return;
+                    }
+                    const deckNameInput = document.getElementById('deck-name');
+                    const deckName = deckNameInput.value.trim();
+                    const subject = document.getElementById('deck-subject-select').value;
+    
+                    if (deckName && subject) {
+                        appData.lastDeckId++;
+                        const newDeck = { id: appData.lastDeckId, name: deckName, subject: subject };
+                        appData.flashcards.decks.push(newDeck);
+                        saveData();
+                        renderDeckList();
+                        updateFlashcardDeckSelect();
+                        deckNameInput.value = '';
+                    } else {
+                        alert('Por favor, selecione uma matéria e digite o nome do deck.');
+                    }
+                }
+                
+                function deleteDeck(deckId) {
+                    if (confirm('Isso apagará o deck e todos os flashcards contidos nele. Deseja continuar?')) {
+                        appData.flashcards.decks = appData.flashcards.decks.filter(d => d.id != deckId);
+                        appData.flashcards.cards = appData.flashcards.cards.filter(c => c.deckId != deckId);
+                        if (currentDeckId == deckId) {
+                            currentDeckId = null;
+                            document.getElementById('current-deck-title').textContent = 'Selecione um deck para começar';
+                            document.getElementById('flashcard-container').innerHTML = '';
+                            document.getElementById('flashcard-controls').innerHTML = '';
+                        }
+                        saveData();
+                        renderFlashcards();
+                    }
+                }
+    
+                function addFlashcard(e) {
+                    e.preventDefault();
+                    if (appData.flashcards.decks.length === 0) {
+                        alert("Por favor, crie um deck na seção 'Gerenciar Decks' antes de adicionar um flashcard.");
+                        return;
+                    }
+                    const deckId = document.getElementById('flashcard-deck-select').value;
+                    const front = document.getElementById('flashcard-front').value;
+                    const back = document.getElementById('flashcard-back').value;
+                    
+                    if (deckId && front && back) {
+                        appData.lastCardId++;
+                        const newCard = { id: appData.lastCardId, deckId: parseInt(deckId), front, back };
+                        appData.flashcards.cards.push(newCard);
+                        saveData();
+                        document.getElementById('add-flashcard-form').reset();
+                        if (parseInt(deckId) === currentDeckId) {
+                            renderCardViewer();
+                        }
+                    } else {
+                        alert('Por favor, selecione um deck e preencha ambos os lados do flashcard.');
+                    }
+                }
+                
+                function selectDeck(deckId) {
+                    currentDeckId = deckId;
+                    currentCardIndex = 0;
+                    renderDeckList();
+                    renderCardViewer();
+                }
+    
+                function renderCardViewer() {
+                    const deck = appData.flashcards.decks.find(d => d.id === currentDeckId);
+                    if (!deck) return;
+    
+                    const cardsInDeck = appData.flashcards.cards.filter(c => c.deckId === currentDeckId);
+                    document.getElementById('current-deck-title').textContent = `${deck.name} (${cardsInDeck.length} cards)`;
+                    
+                    const container = document.getElementById('flashcard-container');
+                    const controls = document.getElementById('flashcard-controls');
+                    container.innerHTML = '';
+                    controls.innerHTML = '';
+    
+                    if (cardsInDeck.length > 0) {
+                        const cardData = cardsInDeck[currentCardIndex];
+                        container.innerHTML = `
+                            <div class="flashcard w-full h-full relative" onclick="this.classList.toggle('flipped')">
+                                <div class="flashcard-inner w-full h-full absolute">
+                                    <div class="flashcard-front w-full h-full absolute bg-white shadow-xl rounded-lg flex items-center justify-center p-6 text-center text-xl">
+                                        ${cardData.front.replace(/\n/g, '<br>')}
+                                    </div>
+                                    <div class="flashcard-back w-full h-full absolute bg-blue-50 shadow-xl rounded-lg flex items-center justify-center p-6 text-center text-lg">
+                                        ${cardData.back.replace(/\n/g, '<br>')}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        controls.innerHTML = `
+                            <button id="prev-card-btn" class="p-3 bg-slate-200 rounded-full hover:bg-slate-300"><i data-lucide="arrow-left"></i></button>
+                            <span id="card-counter">${currentCardIndex + 1} / ${cardsInDeck.length}</span>
+                            <button id="next-card-btn" class="p-3 bg-slate-200 rounded-full hover:bg-slate-300"><i data-lucide="arrow-right"></i></button>
+                            <button id="delete-card-btn" class="p-3 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><i data-lucide="trash-2"></i></button>
+                        `;
+                        lucide.createIcons();
+                    } else {
+                         container.innerHTML = '<p class="text-slate-500 text-center mt-16">Este deck está vazio. Adicione um flashcard para começar.</p>';
+                    }
+                }
+                
+                function navigateCard(direction) {
+                    const cardsInDeck = appData.flashcards.cards.filter(c => c.deckId === currentDeckId);
+                    if (cardsInDeck.length === 0) return;
+                    
+                    currentCardIndex = (currentCardIndex + direction + cardsInDeck.length) % cardsInDeck.length;
+                    renderCardViewer();
+                }
+    
+                function deleteCurrentCard() {
+                    const cardsInDeck = appData.flashcards.cards.filter(c => c.deckId === currentDeckId);
+                    if (cardsInDeck.length > 0) {
+                        const cardToDelete = cardsInDeck[currentCardIndex];
+                        if (confirm('Tem certeza que deseja apagar este flashcard?')) {
+                            appData.flashcards.cards = appData.flashcards.cards.filter(c => c.id !== cardToDelete.id);
+                            saveData();
+                            if (currentCardIndex >= appData.flashcards.cards.filter(c => c.deckId === currentDeckId).length) {
+                                currentCardIndex = 0;
+                            }
+                            renderCardViewer();
+                        }
+                    }
+                }
+    
+    
+                // --- LÓGICA DO DESEMPENHO ---
+                function renderPerformance() {
+                    renderLastPerformanceTable();
+                    renderPerformanceCharts();
+                    renderCalendar();
+                }
+    
+                function renderLastPerformanceTable() {
+                    const lastPerformanceTable = document.getElementById('last-performance-table');
+                    lastPerformanceTable.innerHTML = '';
+                    appData.performance.slice(-5).reverse().forEach(p => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-4 py-2 text-sm text-slate-700">${p.label}</td>
+                            <td class="px-4 py-2 text-sm font-semibold ${p.score >= 70 ? 'text-green-600' : 'text-red-600'}">${p.score}%</td>
+                        `;
+                        lastPerformanceTable.appendChild(row);
+                    });
+                }
+    
+                function renderPerformanceCharts() {
+                    const lineCtx = document.getElementById('performance-chart').getContext('2d');
+                    if (performanceChart) performanceChart.destroy();
+                    performanceChart = new Chart(lineCtx, {
+                        type: 'line',
+                        data: {
+                            labels: appData.performance.map(p => p.label),
+                            datasets: [{
+                                label: 'Pontuação (%)',
+                                data: appData.performance.map(p => p.score),
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true, max: 100 } }
+                        }
+                    });
+    
+                    const pieCtx = document.getElementById('performance-pie-chart').getContext('2d');
+                    let averageScore = 0;
+                    if (appData.performance.length > 0) {
+                        averageScore = appData.performance.reduce((sum, p) => sum + p.score, 0) / appData.performance.length;
+                    }
+                    
+                    if (performancePieChart) performancePieChart.destroy();
+                    performancePieChart = new Chart(pieCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Acertos', 'Erros'],
+                            datasets: [{
+                                data: [averageScore, 100 - averageScore],
+                                backgroundColor: ['#10b981', '#ef4444'],
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => `${context.label}: ${context.parsed.toFixed(1)}%`
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+    
+                function addPerformance(e) {
+                    e.preventDefault();
+                    const label = document.getElementById('performance-subject').value;
+                    const score = document.getElementById('performance-score').value;
+                    const type = document.getElementById('performance-type').value;
+                    const dateInput = document.getElementById('performance-date').value;
+                    
+                    if (!dateInput) {
+                        alert('Por favor, selecione uma data.');
+                        return;
+                    }
+                    
+                    // Ajusta a data para evitar problemas de fuso horário
+                    const [year, month, day] = dateInput.split('-');
+                    const date = new Date(year, month - 1, day).toISOString();
+    
+                    appData.performance.push({ label, score: parseInt(score), date, type });
+                    saveData();
+                    renderPerformance();
+                    document.getElementById('add-performance-form').reset();
+                }
+    
+                // --- LÓGICA DO CALENDÁRIO ---
+                function renderCalendar() {
+                    const calendarGrid = document.getElementById('calendar-grid');
+                    const monthYearEl = document.getElementById('calendar-month-year');
+                    calendarGrid.innerHTML = '';
+                    
+                    const month = calendarDate.getMonth();
+                    const year = calendarDate.getFullYear();
+    
+                    monthYearEl.textContent = calendarDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    
+                    const firstDayOfMonth = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+                    const eventsByDay = {};
+                    appData.performance.forEach(p => {
+                        const d = new Date(p.date);
+                        if (d.getFullYear() === year && d.getMonth() === month) {
+                            const day = d.getDate();
+                            if (!eventsByDay[day]) {
+                                eventsByDay[day] = [];
+                            }
+                            eventsByDay[day].push(p.type);
+                        }
+                    });
+    
+                    for (let i = 0; i < firstDayOfMonth; i++) {
+                        calendarGrid.innerHTML += `<div></div>`;
+                    }
+    
+                    for (let i = 1; i <= daysInMonth; i++) {
+                        const dayEl = document.createElement('div');
+                        dayEl.className = 'calendar-day relative flex items-center justify-center h-9 rounded-full text-sm';
+                        dayEl.textContent = i;
+                        
+                        const today = new Date();
+                        if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                            dayEl.classList.add('today');
+                        }
+                        
+                        if (eventsByDay[i]) {
+                            const dotContainer = document.createElement('div');
+                            dotContainer.className = 'absolute bottom-1 left-0 right-0 flex justify-center items-center gap-1';
+                            if (eventsByDay[i].includes('simulado')) {
+                                dotContainer.innerHTML += '<div class="w-1.5 h-1.5 bg-blue-500 rounded-full" title="Simulado"></div>';
+                            }
+                            if (eventsByDay[i].includes('redacao')) {
+                                dotContainer.innerHTML += '<div class="w-1.5 h-1.5 bg-green-500 rounded-full" title="Redação"></div>';
+                            }
+                            dayEl.appendChild(dotContainer);
+                        }
+                        calendarGrid.appendChild(dayEl);
+                    }
+                }
+    
+                // --- LÓGICA DA GEMINI API ---
+                const modalOverlay = document.getElementById('gemini-modal-overlay');
+                const modalContent = document.getElementById('gemini-modal-content');
+                const modalTitle = document.getElementById('gemini-modal-title');
+                const modalBody = document.getElementById('gemini-modal-body');
+                const modalCloseBtn = document.getElementById('gemini-modal-close');
+    
+                function showModal(title) {
+                    modalTitle.innerHTML = `<i data-lucide="sparkles" class="text-purple-500"></i> ${title}`;
+                    lucide.createIcons();
+                    modalBody.innerHTML = '<div class="flex justify-center items-center p-8"><div class="spinner"></div></div>';
+                    modalOverlay.classList.remove('hidden');
+                    setTimeout(() => {
+                        modalOverlay.classList.remove('opacity-0');
+                        modalContent.classList.remove('scale-95');
+                    }, 10);
+                }
+    
+                function hideModal() {
+                    modalOverlay.classList.add('opacity-0');
+                    modalContent.classList.add('scale-95');
+                    setTimeout(() => {
+                        modalOverlay.classList.add('hidden');
+                    }, 300);
+                }
+    
+                modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === modalOverlay) hideModal();
+                });
+                modalCloseBtn.addEventListener('click', hideModal);
+    
+                async function callGemini(prompt, schema = null) {
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+                    
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }]
+                    };
+    
+                    if (schema) {
+                        payload.generationConfig = {
+                            responseMimeType: "application/json",
+                            responseSchema: schema
+                        };
+                    }
+    
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+    
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+    
+                        const result = await response.json();
+                        return result.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error("Erro ao chamar a API Gemini:", error);
+                        return null;
+                    }
+                }
+                
+                async function handleExplainTopic(subjectName, topicName) {
+                    showModal(`Explicando: ${topicName}`);
+                    const prompt = `Explique o tópico de concurso público "${topicName}" da matéria "${subjectName}" de forma concisa e clara para um candidato de nível médio para o concurso do TJ-SP. Organize em tópicos curtos se possível.`;
+                    const result = await callGemini(prompt);
+                    if (result) {
+                        modalBody.innerHTML = `<div class="prose max-w-none">${result.replace(/\n/g, '<br>')}</div>`;
+                    } else {
+                        modalBody.textContent = 'Não foi possível obter uma explicação. Tente novamente.';
+                    }
+                }
+                
+                async function handleGenerateQuestion(subjectName, topicName) {
+                    showModal(`Gerando questão sobre: ${topicName}`);
+                    const prompt = `Aja como um examinador da banca VUNESP. Crie uma questão de múltipla escolha (A, B, C, D, E) sobre o tópico '${topicName}' da matéria '${subjectName}' para o concurso de Escrevente do TJ-SP. Forneça a pergunta, as 5 alternativas, a letra da alternativa correta e uma justificativa detalhada para a resposta correta.`;
+                    const schema = {
+                        type: "OBJECT",
+                        properties: {
+                            question: { type: "STRING" },
+                            options: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        letter: { type: "STRING" },
+                                        text: { type: "STRING" }
+                                    },
+                                    required: ["letter", "text"]
+                                }
+                            },
+                            correctAnswer: { type: "STRING" },
+                            justification: { type: "STRING" }
+                        },
+                        required: ["question", "options", "correctAnswer", "justification"]
+                    };
+                    const result = await callGemini(prompt, schema);
+                    if(result) {
+                        try {
+                            const data = JSON.parse(result);
+                            let optionsHtml = data.options.map(opt => `
+                                <div class="p-2 border rounded-md">${opt.letter}) ${opt.text}</div>
+                            `).join('');
+                            modalBody.innerHTML = `
+                                <p class="font-semibold mb-4">${data.question}</p>
+                                <div class="space-y-2 mb-4">${optionsHtml}</div>
+                                <details class="bg-slate-50 p-3 rounded-md cursor-pointer">
+                                    <summary class="font-semibold">Ver Resposta</summary>
+                                    <div class="mt-2 pt-2 border-t">
+                                        <p><b>Resposta Correta:</b> ${data.correctAnswer}</p>
+                                        <p class="mt-2"><b>Justificativa:</b> ${data.justification}</p>
+                                    </div>
+                                </details>
+                            `;
+                        } catch(e) {
+                             modalBody.textContent = 'Erro ao processar a resposta da IA.';
+                        }
+                    } else {
+                        modalBody.textContent = 'Não foi possível gerar a questão. Tente novamente.';
+                    }
+                }
+    
+                async function handleGenerateFlashcards(e) {
+                    e.preventDefault();
+                    const topic = document.getElementById('gen-flashcard-topic').value;
+                    const deckId = document.getElementById('gen-flashcard-deck-select').value;
+    
+                    if (!topic || !deckId) {
+                        alert('Por favor, preencha o tópico e selecione um deck.');
+                        return;
+                    }
+                    
+                    showModal(`Gerando flashcards sobre ${topic}`);
+                    const prompt = `Gere 5 flashcards sobre o tópico de concurso "${topic}". Retorne a resposta como um array JSON. Cada objeto no array deve ter duas chaves: "front" (para a pergunta) e "back" (para a resposta).`;
+                    const schema = {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "front": { "type": "STRING" },
+                                "back": { "type": "STRING" }
+                            },
+                            required: ["front", "back"]
+                        }
+                    };
+                    const result = await callGemini(prompt, schema);
+    
+                    if (result) {
+                        try {
+                            const flashcards = JSON.parse(result);
+                            flashcards.forEach(card => {
+                                appData.lastCardId++;
+                                const newCard = {
+                                    id: appData.lastCardId,
+                                    deckId: parseInt(deckId),
+                                    front: card.front,
+                                    back: card.back
+                                };
+                                appData.flashcards.cards.push(newCard);
+                            });
+                            saveData();
+                            renderFlashcards();
+                            if (parseInt(deckId) === currentDeckId) {
+                                renderCardViewer();
+                            }
+                            hideModal();
+                            alert(`${flashcards.length} flashcards gerados e adicionados com sucesso!`);
+                        } catch (e) {
+                            console.error("Erro ao parsear JSON:", e);
+                            modalBody.textContent = 'Erro ao processar a resposta da IA.';
+                        }
+                    } else {
+                        modalBody.textContent = 'Não foi possível gerar os flashcards. Tente novamente.';
+                    }
+                }
+    
+                async function handleSuggestTopic() {
+                    showModal('Sugerindo Tema de Redação');
+                    const prompt = `Sugira um tema de redação dissertativo-argumentativo para o concurso de Escrevente do TJ-SP, baseado em atualidades relevantes para o Brasil em 2025 ou em temas relacionados às atribuições do cargo. Apresente o tema e uma breve contextualização.`;
+                    const result = await callGemini(prompt);
+                    if (result) {
+                        modalBody.innerHTML = `<div class="prose max-w-none">${result.replace(/\n/g, '<br>')}</div>`;
+                    } else {
+                        modalBody.textContent = 'Não foi possível obter uma sugestão. Tente novamente.';
+                    }
+                }
+    
+                async function handleAnalyzeWriting(e) {
+                    e.preventDefault();
+                    const writingText = document.getElementById('writing-text').value;
+                    if (writingText.trim().length < 50) {
+                        alert('Por favor, insira um texto com pelo menos 50 caracteres para análise.');
+                        return;
+                    }
+                    showModal('Analisando sua Redação');
+                    const prompt = `Aja como um examinador do concurso TJ-SP. Analise esta redação dissertativo-argumentativa. Forneça um feedback inicial sobre: 1. Estrutura (introdução, desenvolvimento, conclusão). 2. Coesão e Coerência. 3. Correção Gramatical. Seja objetivo e aponte os principais pontos de melhoria, usando tópicos. Não dê uma nota. A redação é: "${writingText}"`;
+                    const result = await callGemini(prompt);
+                     if (result) {
+                        modalBody.innerHTML = `<div class="prose max-w-none">${result.replace(/\n/g, '<br>')}</div>`;
+                    } else {
+                        modalBody.textContent = 'Não foi possível analisar a redação. Tente novamente.';
+                    }
+                }
+    
+    
+                // --- EVENT LISTENERS GLOBAIS ---
+                document.body.addEventListener('click', (e) => {
+                    if (e.target.matches('.complete-review-btn')) {
+                        completeReview(e.target.dataset.reviewId);
+                    }
+                    if (e.target.matches('.delete-review-btn')) {
+                        deleteReview(e.target.dataset.reviewId);
+                    }
+                    if (e.target.matches('.select-deck')) {
+                        selectDeck(parseInt(e.target.dataset.deckId));
+                    }
+                    if (e.target.closest('.delete-deck-btn')) {
+                        deleteDeck(parseInt(e.target.closest('.delete-deck-btn').dataset.deckId));
+                    }
+                    if (e.target.closest('#prev-card-btn')) navigateCard(-1);
+                    if (e.target.closest('#next-card-btn')) navigateCard(1);
+                    if (e.target.closest('#delete-card-btn')) deleteCurrentCard();
+                    if (e.target.closest('.delete-subject-btn')) {
+                        const btn = e.target.closest('.delete-subject-btn');
+                        deleteSubject(btn.dataset.subjectId, btn.dataset.subjectName);
+                    }
+                    if (e.target.closest('.delete-topic-btn')) {
+                        const btn = e.target.closest('.delete-topic-btn');
+                        deleteTopic(btn.dataset.subjectId, btn.dataset.topicName);
+                    }
+                    if (e.target.closest('.explain-topic-btn')) {
+                        const btn = e.target.closest('.explain-topic-btn');
+                        handleExplainTopic(btn.dataset.subjectName, btn.dataset.topicName);
+                    }
+                    if (e.target.closest('.generate-question-btn')) {
+                        const btn = e.target.closest('.generate-question-btn');
+                        handleGenerateQuestion(btn.dataset.subjectName, btn.dataset.topicName);
+                    }
+                });
+                
+                document.body.addEventListener('submit', (e) => {
+                    if (e.target.matches('.add-topic-form')) {
+                        addTopic(e);
+                    }
+                });
+    
+                document.body.addEventListener('input', (e) => {
+                    if (e.target.matches('.topic-progress-slider')) {
+                        const slider = e.target;
+                        const percentageSpan = slider.nextElementSibling;
+                        percentageSpan.textContent = `${slider.value}%`;
+                        updateTopicProgress(slider.dataset.subjectId, slider.dataset.topicName, parseInt(slider.value));
+                    }
+                });
+                
+                document.getElementById('prev-month-btn').addEventListener('click', () => {
+                    calendarDate.setMonth(calendarDate.getMonth() - 1);
+                    renderCalendar();
+                });
+    
+                document.getElementById('next-month-btn').addEventListener('click', () => {
+                    calendarDate.setMonth(calendarDate.getMonth() + 1);
+                    renderCalendar();
+                });
+    
+                document.getElementById('add-subject-form').addEventListener('submit', addSubject);
+                document.getElementById('add-review-form').addEventListener('submit', addReview);
+                document.getElementById('add-deck-form').addEventListener('submit', addDeck);
+                document.getElementById('add-flashcard-form').addEventListener('submit', addFlashcard);
+                document.getElementById('add-performance-form').addEventListener('submit', addPerformance);
+                document.getElementById('generate-flashcards-form').addEventListener('submit', handleGenerateFlashcards);
+                document.getElementById('suggest-topic-btn').addEventListener('click', handleSuggestTopic);
+                document.getElementById('analyze-writing-form').addEventListener('submit', handleAnalyzeWriting);
+    
+                // --- INICIALIZAÇÃO ---
+                function renderAll() {
+                    renderDashboard();
+                    renderSubjectsPage();
+                    renderReviews();
+                    renderFlashcards();
+                    renderPerformance();
+                }
+    
+                loadData();
+                // A inicialização completa só ocorre após o login bem-sucedido
+            }
+        });
+    </script>
+</body>
+</html>
